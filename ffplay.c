@@ -60,6 +60,12 @@
 
 #include <assert.h>
 
+// Windows specific includes for Boom.tv version
+#include <windows.h>
+#include <windef.h>
+#include <winuser.h>
+#include <SDL_syswm.h>
+
 const char program_name[] = "ffplay";
 const int program_birth_year = 2003;
 
@@ -314,6 +320,8 @@ static int default_width  = 640;
 static int default_height = 480;
 static int screen_width  = 0;
 static int screen_height = 0;
+static int screen_posx = 0;
+static int screen_posy = 0;
 static int audio_disable;
 static int video_disable;
 static int subtitle_disable;
@@ -352,6 +360,7 @@ static int autorotate = 1;
 
 /* current context */
 static int is_full_screen;
+static int is_in_bg;
 static int64_t audio_callback_time;
 
 static AVPacket flush_pkt;
@@ -1267,6 +1276,16 @@ static int video_open(VideoState *is)
         h = default_height;
     }
 
+    // Window position is configurable
+    int posx = SDL_WINDOWPOS_UNDEFINED;
+    int posy = SDL_WINDOWPOS_UNDEFINED;
+    if (screen_posx) {
+        posx = screen_posx;
+    }
+    if (screen_posy) {
+        posy = screen_posy;
+    }
+
     if (!window) {
         int flags = SDL_WINDOW_SHOWN;
         if (!window_title)
@@ -1277,7 +1296,7 @@ static int video_open(VideoState *is)
             flags |= SDL_WINDOW_BORDERLESS;
         else
             flags |= SDL_WINDOW_RESIZABLE;
-        window = SDL_CreateWindow(window_title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, flags);
+        window = SDL_CreateWindow(window_title, posx, posy, w, h, flags);
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
         if (window) {
             SDL_RendererInfo info;
@@ -1293,6 +1312,22 @@ static int video_open(VideoState *is)
         }
     } else {
         SDL_SetWindowSize(window, w, h);
+    }
+
+    // Move the window to the background (behind all other windows)
+    if (is_in_bg) {
+        HWND windowZPos = HWND_BOTTOM;
+        UINT uFlags = SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE;
+
+        // Get the window handle
+        SDL_SysWMinfo systemInfo;
+        SDL_VERSION(&systemInfo.version);
+        SDL_GetWindowWMInfo(window, &systemInfo);
+        HWND handle = systemInfo.info.win.window;
+
+        // Set window position and THEN show it
+        SetWindowPos(handle, windowZPos, posx, posy, w, h, uFlags);
+        ShowWindow(handle, SW_SHOWNOACTIVATE);
     }
 
     if (!window || !renderer) {
@@ -3422,6 +3457,18 @@ static int opt_height(void *optctx, const char *opt, const char *arg)
     return 0;
 }
 
+static int opt_posx(void *optctx, const char *opt, const char *arg)
+{
+    screen_posx = parse_number_or_die(opt, arg, OPT_INT64, INT_MIN, INT_MAX);
+    return 0;
+}
+
+static int opt_posy(void *optctx, const char *opt, const char *arg)
+{
+    screen_posy = parse_number_or_die(opt, arg, OPT_INT64, INT_MIN, INT_MAX);
+    return 0;
+}
+
 static int opt_format(void *optctx, const char *opt, const char *arg)
 {
     file_iformat = av_find_input_format(arg);
@@ -3517,6 +3564,9 @@ static const OptionDef options[] = {
     { "y", HAS_ARG, { .func_arg = opt_height }, "force displayed height", "height" },
     { "s", HAS_ARG | OPT_VIDEO, { .func_arg = opt_frame_size }, "set frame size (WxH or abbreviation)", "size" },
     { "fs", OPT_BOOL, { &is_full_screen }, "force full screen" },
+    { "bg", OPT_BOOL, { &is_in_bg }, "move screen to background" },
+    { "posx", HAS_ARG, { .func_arg = opt_posx }, "window x position", "posx" },
+    { "posy", HAS_ARG, { .func_arg = opt_posy }, "window y position", "posy" },
     { "an", OPT_BOOL, { &audio_disable }, "disable audio" },
     { "vn", OPT_BOOL, { &video_disable }, "disable video" },
     { "sn", OPT_BOOL, { &subtitle_disable }, "disable subtitling" },
@@ -3562,7 +3612,7 @@ static const OptionDef options[] = {
 
 static void show_usage(void)
 {
-    av_log(NULL, AV_LOG_INFO, "Simple media player\n");
+    av_log(NULL, AV_LOG_INFO, "Simple media player (Boom.tv custom version)\n");
     av_log(NULL, AV_LOG_INFO, "usage: %s [options] input_file\n", program_name);
     av_log(NULL, AV_LOG_INFO, "\n");
 }
