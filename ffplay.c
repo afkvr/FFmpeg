@@ -360,6 +360,7 @@ static int autorotate = 1;
 
 /* current context */
 static int is_full_screen;
+static int is_hidden;
 static int is_in_bg;
 static int64_t audio_callback_time;
 
@@ -1287,15 +1288,27 @@ static int video_open(VideoState *is)
     }
 
     if (!window) {
-        int flags = SDL_WINDOW_SHOWN;
+        int flags = 0;
+
         if (!window_title)
             window_title = input_filename;
+
+        // Hide or show the window
+        if (is_hidden) {
+            flags |= SDL_WINDOW_HIDDEN;
+        }
+        else {
+            flags |= SDL_WINDOW_SHOWN;
+        }
+
         if (is_full_screen)
             flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+
         if (borderless)
             flags |= SDL_WINDOW_BORDERLESS;
         else
             flags |= SDL_WINDOW_RESIZABLE;
+
         window = SDL_CreateWindow(window_title, posx, posy, w, h, flags);
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
         if (window) {
@@ -3560,13 +3573,14 @@ static int dummy;
 
 static const OptionDef options[] = {
     CMDUTILS_COMMON_OPTIONS
-    { "x", HAS_ARG, { .func_arg = opt_width }, "force displayed width", "width" },
-    { "y", HAS_ARG, { .func_arg = opt_height }, "force displayed height", "height" },
+    { "w", HAS_ARG, { .func_arg = opt_width }, "force displayed width", "width" },
+    { "h", HAS_ARG, { .func_arg = opt_height }, "force displayed height", "height" },
     { "s", HAS_ARG | OPT_VIDEO, { .func_arg = opt_frame_size }, "set frame size (WxH or abbreviation)", "size" },
     { "fs", OPT_BOOL, { &is_full_screen }, "force full screen" },
     { "bg", OPT_BOOL, { &is_in_bg }, "move screen to background" },
-    { "posx", HAS_ARG, { .func_arg = opt_posx }, "window x position", "posx" },
-    { "posy", HAS_ARG, { .func_arg = opt_posy }, "window y position", "posy" },
+    { "hidden", OPT_BOOL, { &is_hidden }, "hide the window initially (does not steal focus)" },
+    { "x", HAS_ARG, { .func_arg = opt_posx }, "window x position", "posx" },
+    { "y", HAS_ARG, { .func_arg = opt_posy }, "window y position", "posy" },
     { "an", OPT_BOOL, { &audio_disable }, "disable audio" },
     { "vn", OPT_BOOL, { &video_disable }, "disable video" },
     { "sn", OPT_BOOL, { &subtitle_disable }, "disable subtitling" },
