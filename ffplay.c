@@ -3573,8 +3573,8 @@ static int dummy;
 
 static const OptionDef options[] = {
     CMDUTILS_COMMON_OPTIONS
-    { "w", HAS_ARG, { .func_arg = opt_width }, "force displayed width", "width" },
-    { "h", HAS_ARG, { .func_arg = opt_height }, "force displayed height", "height" },
+    { "wi", HAS_ARG, { .func_arg = opt_width }, "force displayed width", "width" },
+    { "he", HAS_ARG, { .func_arg = opt_height }, "force displayed height", "height" },
     { "s", HAS_ARG | OPT_VIDEO, { .func_arg = opt_frame_size }, "set frame size (WxH or abbreviation)", "size" },
     { "fs", OPT_BOOL, { &is_full_screen }, "force full screen" },
     { "bg", OPT_BOOL, { &is_in_bg }, "move screen to background" },
