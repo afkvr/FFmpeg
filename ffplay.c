@@ -1300,6 +1300,7 @@ static int video_open(VideoState *is)
         else {
             flags |= SDL_WINDOW_SHOWN;
         }
+        flags |= SDL_WINDOW_OPENGL;
 
         if (is_full_screen)
             flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
@@ -1309,8 +1310,20 @@ static int video_open(VideoState *is)
         else
             flags |= SDL_WINDOW_RESIZABLE;
 
+        SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+        SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 3 );
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+        SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
+        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
         window = SDL_CreateWindow(window_title, posx, posy, w, h, flags);
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+
+        // Make use of opengl
+        SDL_GLContext glcontext = SDL_GL_CreateContext(window);
+        SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+
         if (window) {
             SDL_RendererInfo info;
             renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
@@ -1320,7 +1333,7 @@ static int video_open(VideoState *is)
             }
             if (renderer) {
                 if (!SDL_GetRendererInfo(renderer, &info))
-                    av_log(NULL, AV_LOG_VERBOSE, "Initialized %s renderer.\n", info.name);
+                    av_log(NULL, AV_LOG_VERBOSE, "Initialized %s renderer %i.\n", info.name, glcontext);
             }
         }
     } else {
