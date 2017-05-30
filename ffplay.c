@@ -1366,10 +1366,10 @@ static int video_open(VideoState *is)
     is->height = h;
 
     // Handle delay time here
-    av_log(NULL, AV_LOG_VERBOSE, "Delaying playback by %f seconds.\n", delay_time);
+    int timemilli = (int)(delay_time * 1000.0f);
+    av_log(NULL, AV_LOG_VERBOSE, "Delaying playback by %f seconds (%i milli).\n", delay_time, timemilli);
     if (delay_time > 0.01f) {
-
-        av_usleep(delay_time * 1000000);
+        Sleep(timemilli);
         av_log(NULL, AV_LOG_VERBOSE, "Delay done\n", delay_time);
     }
 
