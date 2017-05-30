@@ -363,6 +363,7 @@ static int is_full_screen;
 static int is_hidden;
 static int is_in_bg;
 static float delay_time;
+static int64_t reset_time;
 static int64_t audio_callback_time;
 
 static AVPacket flush_pkt;
@@ -1376,21 +1377,6 @@ static int video_open(VideoState *is)
     return 0;
 }
 
-/* display the current picture, if any */
-static void video_display(VideoState *is)
-{
-    if (!window)
-        video_open(is);
-
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
-    if (is->audio_st && is->show_mode != SHOW_MODE_VIDEO)
-        video_audio_display(is);
-    else if (is->video_st)
-        video_image_display(is);
-    SDL_RenderPresent(renderer);
-}
-
 static double get_clock(Clock *c)
 {
     if (*c->queue_serial != c->serial)
@@ -1474,20 +1460,6 @@ static double get_master_clock(VideoState *is)
     return val;
 }
 
-static void check_external_clock_speed(VideoState *is) {
-   if (is->video_stream >= 0 && is->videoq.nb_packets <= EXTERNAL_CLOCK_MIN_FRAMES ||
-       is->audio_stream >= 0 && is->audioq.nb_packets <= EXTERNAL_CLOCK_MIN_FRAMES) {
-       set_clock_speed(&is->extclk, FFMAX(EXTERNAL_CLOCK_SPEED_MIN, is->extclk.speed - EXTERNAL_CLOCK_SPEED_STEP));
-   } else if ((is->video_stream < 0 || is->videoq.nb_packets > EXTERNAL_CLOCK_MAX_FRAMES) &&
-              (is->audio_stream < 0 || is->audioq.nb_packets > EXTERNAL_CLOCK_MAX_FRAMES)) {
-       set_clock_speed(&is->extclk, FFMIN(EXTERNAL_CLOCK_SPEED_MAX, is->extclk.speed + EXTERNAL_CLOCK_SPEED_STEP));
-   } else {
-       double speed = is->extclk.speed;
-       if (speed != 1.0)
-           set_clock_speed(&is->extclk, speed + EXTERNAL_CLOCK_SPEED_STEP * (1.0 - speed) / fabs(1.0 - speed));
-   }
-}
-
 /* seek in the stream */
 static void stream_seek(VideoState *is, int64_t pos, int64_t rel, int seek_by_bytes)
 {
@@ -1500,6 +1472,75 @@ static void stream_seek(VideoState *is, int64_t pos, int64_t rel, int seek_by_by
         is->seek_req = 1;
         SDL_CondSignal(is->continue_read_thread);
     }
+}
+
+/* display the current picture, if any */
+static void video_display(VideoState *is)
+{
+    if (!window)
+        video_open(is);
+
+    // A second after starting to play, reset to the start of the video
+    // This prevents an ffplay bug that would otherwise skip the first 1-2 seconds of the video
+    static int reset = 1;
+    static int64_t startTime = 0;
+    if (!startTime) {
+        startTime = av_gettime() / 1000;
+    }
+    int64_t currentTime = av_gettime() / 1000;
+    if (reset && (currentTime - startTime) > reset_time) {
+        av_log(NULL, AV_LOG_VERBOSE, "Reset playback to start after %i ms.\n", reset_time);
+        double incr = -10.0;
+        double pos = 0;
+        if (seek_by_bytes) {
+            pos = -1;
+            if (pos < 0 && is->video_stream >= 0)
+                pos = frame_queue_last_pos(&is->pictq);
+            if (pos < 0 && is->audio_stream >= 0)
+                pos = frame_queue_last_pos(&is->sampq);
+            if (pos < 0)
+                pos = avio_tell(is->ic->pb);
+            if (is->ic->bit_rate)
+                incr *= is->ic->bit_rate / 8.0;
+            else
+                incr *= 180000.0;
+            pos += incr;
+            stream_seek(is, (int64_t)pos, (int64_t)incr, 1);
+        } else {
+            pos = get_master_clock(is);
+            if (isnan(pos))
+                pos = (double)is->seek_pos / AV_TIME_BASE;
+            pos += incr;
+            if (is->ic->start_time != AV_NOPTS_VALUE && pos < is->ic->start_time / (double)AV_TIME_BASE)
+                pos = is->ic->start_time / (double)AV_TIME_BASE;
+            stream_seek(is, (int64_t)(pos * AV_TIME_BASE), (int64_t)(incr * AV_TIME_BASE), 0);
+        }
+
+        // Only do this once
+        reset = 0;
+    }
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+    if (is->audio_st && is->show_mode != SHOW_MODE_VIDEO)
+        video_audio_display(is);
+    else if (is->video_st)
+        video_image_display(is);
+    SDL_RenderPresent(renderer);
+}
+
+static void check_external_clock_speed(VideoState *is) {
+   if (is->video_stream >= 0 && is->videoq.nb_packets <= EXTERNAL_CLOCK_MIN_FRAMES ||
+       is->audio_stream >= 0 && is->audioq.nb_packets <= EXTERNAL_CLOCK_MIN_FRAMES) {
+       set_clock_speed(&is->extclk, FFMAX(EXTERNAL_CLOCK_SPEED_MIN, is->extclk.speed - EXTERNAL_CLOCK_SPEED_STEP));
+   } else if ((is->video_stream < 0 || is->videoq.nb_packets > EXTERNAL_CLOCK_MAX_FRAMES) &&
+              (is->audio_stream < 0 || is->audioq.nb_packets > EXTERNAL_CLOCK_MAX_FRAMES)) {
+       set_clock_speed(&is->extclk, FFMIN(EXTERNAL_CLOCK_SPEED_MAX, is->extclk.speed + EXTERNAL_CLOCK_SPEED_STEP));
+   } else {
+       double speed = is->extclk.speed;
+       if (speed != 1.0)
+           set_clock_speed(&is->extclk, speed + EXTERNAL_CLOCK_SPEED_STEP * (1.0 - speed) / fabs(1.0 - speed));
+   }
 }
 
 /* pause or resume the video */
@@ -3282,6 +3323,7 @@ static void event_loop(VideoState *cur_stream)
     for (;;) {
         double x;
         refresh_loop_wait_event(cur_stream, &event);
+
         switch (event.type) {
         case SDL_KEYDOWN:
             if (exit_on_keydown) {
@@ -3510,6 +3552,12 @@ static int opt_delay(void *optctx, const char *opt, const char *arg)
     return 0;
 }
 
+static int opt_reset(void *optctx, const char *opt, const char *arg)
+{
+    reset_time = parse_number_or_die(opt, arg, OPT_INT64, 0, INT_MAX);
+    return 0;
+}
+
 static int opt_format(void *optctx, const char *opt, const char *arg)
 {
     file_iformat = av_find_input_format(arg);
@@ -3610,6 +3658,7 @@ static const OptionDef options[] = {
     { "x", HAS_ARG, { .func_arg = opt_posx }, "window x position", "posx" },
     { "y", HAS_ARG, { .func_arg = opt_posy }, "window y position", "posy" },
     { "delay", HAS_ARG, { .func_arg = opt_delay }, "delay in seconds after which to start playing", "delay" },
+    { "reset", HAS_ARG, { .func_arg = opt_reset }, "milliseconds after which the playback will be reset to the start.", "reset" },
     { "an", OPT_BOOL, { &audio_disable }, "disable audio" },
     { "vn", OPT_BOOL, { &video_disable }, "disable video" },
     { "sn", OPT_BOOL, { &subtitle_disable }, "disable subtitling" },
