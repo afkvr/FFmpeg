@@ -362,6 +362,7 @@ static int autorotate = 1;
 static int is_full_screen;
 static int is_hidden;
 static int is_in_bg;
+static float delay_time;
 static int64_t audio_callback_time;
 
 static AVPacket flush_pkt;
@@ -1363,6 +1364,14 @@ static int video_open(VideoState *is)
 
     is->width  = w;
     is->height = h;
+
+    // Handle delay time here
+    av_log(NULL, AV_LOG_VERBOSE, "Delaying playback by %f seconds.\n", delay_time);
+    if (delay_time > 0.01f) {
+
+        av_usleep(delay_time * 1000000);
+        av_log(NULL, AV_LOG_VERBOSE, "Delay done\n", delay_time);
+    }
 
     return 0;
 }
@@ -3495,6 +3504,12 @@ static int opt_posy(void *optctx, const char *opt, const char *arg)
     return 0;
 }
 
+static int opt_delay(void *optctx, const char *opt, const char *arg)
+{
+    delay_time = parse_number_or_die(opt, arg, OPT_FLOAT, -INFINITY, INFINITY);
+    return 0;
+}
+
 static int opt_format(void *optctx, const char *opt, const char *arg)
 {
     file_iformat = av_find_input_format(arg);
@@ -3594,6 +3609,7 @@ static const OptionDef options[] = {
     { "hidden", OPT_BOOL, { &is_hidden }, "hide the window initially (does not steal focus)" },
     { "x", HAS_ARG, { .func_arg = opt_posx }, "window x position", "posx" },
     { "y", HAS_ARG, { .func_arg = opt_posy }, "window y position", "posy" },
+    { "delay", HAS_ARG, { .func_arg = opt_delay }, "delay in seconds after which to start playing", "delay" },
     { "an", OPT_BOOL, { &audio_disable }, "disable audio" },
     { "vn", OPT_BOOL, { &video_disable }, "disable video" },
     { "sn", OPT_BOOL, { &subtitle_disable }, "disable subtitling" },
