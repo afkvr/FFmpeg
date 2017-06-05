@@ -3325,7 +3325,7 @@ static void event_loop(VideoState *cur_stream)
         refresh_loop_wait_event(cur_stream, &event);
 
         switch (event.type) {
-        case SDL_KEYDOWN:
+        /*case SDL_KEYDOWN:
             if (exit_on_keydown) {
                 do_exit(cur_stream);
                 break;
@@ -3492,7 +3492,7 @@ static void event_loop(VideoState *cur_stream)
                         ts += cur_stream->ic->start_time;
                     stream_seek(cur_stream, ts, 0, 0);
                 }
-            break;
+            break;*/
         case SDL_WINDOWEVENT:
             switch (event.window.event) {
                 case SDL_WINDOWEVENT_RESIZED:
