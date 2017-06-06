@@ -3437,8 +3437,8 @@ static void event_loop(VideoState *cur_stream)
             default:
                 break;
             }
-            break;
-        case SDL_MOUSEBUTTONDOWN:
+            break;*/
+        /*case SDL_MOUSEBUTTONDOWN:
             if (exit_on_mousedown) {
                 do_exit(cur_stream);
                 break;
@@ -3452,14 +3452,14 @@ static void event_loop(VideoState *cur_stream)
                 } else {
                     last_mouse_left_click = av_gettime_relative();
                 }
-            }
+            }*/
         case SDL_MOUSEMOTION:
             if (cursor_hidden) {
                 SDL_ShowCursor(1);
                 cursor_hidden = 0;
             }
             cursor_last_shown = av_gettime_relative();
-            if (event.type == SDL_MOUSEBUTTONDOWN) {
+            /*if (event.type == SDL_MOUSEBUTTONDOWN) {
                 if (event.button.button != SDL_BUTTON_RIGHT)
                     break;
                 x = event.button.x;
@@ -3491,8 +3491,8 @@ static void event_loop(VideoState *cur_stream)
                     if (cur_stream->ic->start_time != AV_NOPTS_VALUE)
                         ts += cur_stream->ic->start_time;
                     stream_seek(cur_stream, ts, 0, 0);
-                }
-            break;*/
+                }*/
+            break;
         case SDL_WINDOWEVENT:
             switch (event.window.event) {
                 case SDL_WINDOWEVENT_RESIZED:
