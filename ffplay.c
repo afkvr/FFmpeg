@@ -55,6 +55,7 @@
 
 #include <SDL.h>
 #include <SDL_thread.h>
+#include <SDL_image.h>
 
 #include "cmdutils.h"
 
@@ -361,6 +362,7 @@ static int autorotate = 1;
 /* current context */
 static int is_full_screen;
 static int is_hidden;
+static int load_icon;
 static int is_in_bg;
 static float delay_time;
 static int64_t reset_time;
@@ -1321,6 +1323,22 @@ static int video_open(VideoState *is)
 
         window = SDL_CreateWindow(window_title, posx, posy, w, h, flags);
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+
+        // Load icon
+        if (load_icon) {
+            // Load the image first
+            SDL_Surface* surface = IMG_Load("icon.ico");
+            if( surface == NULL ) {
+                av_log(NULL, AV_LOG_ERROR, "Failed to load icon.ico: %s\n", SDL_GetError());
+            }
+            else {
+                // The icon is attached to the window pointer
+                SDL_SetWindowIcon(window, surface);
+
+                // ...and the surface containing the icon pixel data is no longer required.
+                SDL_FreeSurface(surface);
+            }
+        }
 
         // Make use of opengl
         SDL_GLContext glcontext = SDL_GL_CreateContext(window);
@@ -3655,6 +3673,7 @@ static const OptionDef options[] = {
     { "fs", OPT_BOOL, { &is_full_screen }, "force full screen" },
     { "bg", OPT_BOOL, { &is_in_bg }, "move screen to background" },
     { "hidden", OPT_BOOL, { &is_hidden }, "hide the window initially (does not steal focus)" },
+    { "loadicon", OPT_BOOL, { &load_icon }, "Will load an icon named icon.ico in the executable folder to use as window icon" },
     { "x", HAS_ARG, { .func_arg = opt_posx }, "window x position", "posx" },
     { "y", HAS_ARG, { .func_arg = opt_posy }, "window y position", "posy" },
     { "delay", HAS_ARG, { .func_arg = opt_delay }, "delay in seconds after which to start playing", "delay" },
