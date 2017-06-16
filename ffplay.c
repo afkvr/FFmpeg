@@ -1327,9 +1327,9 @@ static int video_open(VideoState *is)
         // Load icon
         if (load_icon) {
             // Load the image first
-            SDL_Surface* surface = IMG_Load("icon.ico");
+            SDL_Surface* surface = SDL_LoadBMP("icon.bmp");
             if( surface == NULL ) {
-                av_log(NULL, AV_LOG_ERROR, "Failed to load icon.ico: %s\n", SDL_GetError());
+                av_log(NULL, AV_LOG_ERROR, "Failed to load icon.bmp: %s\n", SDL_GetError());
             }
             else {
                 // The icon is attached to the window pointer
@@ -3673,7 +3673,7 @@ static const OptionDef options[] = {
     { "fs", OPT_BOOL, { &is_full_screen }, "force full screen" },
     { "bg", OPT_BOOL, { &is_in_bg }, "move screen to background" },
     { "hidden", OPT_BOOL, { &is_hidden }, "hide the window initially (does not steal focus)" },
-    { "loadicon", OPT_BOOL, { &load_icon }, "Will load an icon named icon.ico in the executable folder to use as window icon" },
+    { "loadicon", OPT_BOOL, { &load_icon }, "Will load an icon named icon.bmp (ONLY bmp is supported) in the executable folder to use as window icon" },
     { "x", HAS_ARG, { .func_arg = opt_posx }, "window x position", "posx" },
     { "y", HAS_ARG, { .func_arg = opt_posy }, "window y position", "posy" },
     { "delay", HAS_ARG, { .func_arg = opt_delay }, "delay in seconds after which to start playing", "delay" },
