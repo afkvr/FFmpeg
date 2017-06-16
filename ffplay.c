@@ -1323,22 +1323,6 @@ static int video_open(VideoState *is)
         window = SDL_CreateWindow(window_title, posx, posy, w, h, flags);
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 
-        // Load icon
-        if (load_icon) {
-            // Load the image first
-            SDL_Surface* surface = SDL_LoadBMP("icon.bmp");
-            if( surface == NULL ) {
-                av_log(NULL, AV_LOG_ERROR, "Failed to load icon.bmp: %s\n", SDL_GetError());
-            }
-            else {
-                // The icon is attached to the window pointer
-                SDL_SetWindowIcon(window, surface);
-
-                // ...and the surface containing the icon pixel data is no longer required.
-                SDL_FreeSurface(surface);
-            }
-        }
-
         // Make use of opengl
         SDL_GLContext glcontext = SDL_GL_CreateContext(window);
         SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
@@ -1373,6 +1357,22 @@ static int video_open(VideoState *is)
         // Set window position and THEN show it
         SetWindowPos(handle, windowZPos, posx, posy, w, h, uFlags);
         ShowWindow(handle, SW_SHOWNOACTIVATE);
+    }
+
+    // Load icon
+    if (load_icon) {
+        // Load the image first
+        SDL_Surface* surface = SDL_LoadBMP("icon.bmp");
+        if( surface == NULL ) {
+            av_log(NULL, AV_LOG_ERROR, "Failed to load icon.bmp: %s\n", SDL_GetError());
+        }
+        else {
+            // The icon is attached to the window pointer
+            SDL_SetWindowIcon(window, surface);
+
+            // ...and the surface containing the icon pixel data is no longer required.
+            SDL_FreeSurface(surface);
+        }
     }
 
     if (!window || !renderer) {
