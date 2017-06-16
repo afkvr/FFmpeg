@@ -361,6 +361,7 @@ static int autorotate = 1;
 /* current context */
 static int is_full_screen;
 static int is_hidden;
+static int disable_resize;
 static int load_icon;
 static int is_in_bg;
 static float delay_time;
@@ -1310,7 +1311,7 @@ static int video_open(VideoState *is)
 
         if (borderless)
             flags |= SDL_WINDOW_BORDERLESS;
-        else
+        else if (!disable_resize)
             flags |= SDL_WINDOW_RESIZABLE;
 
         SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
@@ -3672,6 +3673,7 @@ static const OptionDef options[] = {
     { "fs", OPT_BOOL, { &is_full_screen }, "force full screen" },
     { "bg", OPT_BOOL, { &is_in_bg }, "move screen to background" },
     { "hidden", OPT_BOOL, { &is_hidden }, "hide the window initially (does not steal focus)" },
+    { "noresize", OPT_BOOL, { &disable_resize }, "disable the ability to resize the window" },
     { "loadicon", OPT_BOOL, { &load_icon }, "Will load an icon named icon.bmp (ONLY bmp is supported) in the executable folder to use as window icon" },
     { "x", HAS_ARG, { .func_arg = opt_posx }, "window x position", "posx" },
     { "y", HAS_ARG, { .func_arg = opt_posy }, "window y position", "posy" },
