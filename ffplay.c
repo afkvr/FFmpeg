@@ -55,7 +55,6 @@
 
 #include <SDL.h>
 #include <SDL_thread.h>
-#include <SDL_image.h>
 
 #include "cmdutils.h"
 
