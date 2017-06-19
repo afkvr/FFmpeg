@@ -1506,7 +1506,7 @@ static void video_display(VideoState *is)
         startTime = av_gettime() / 1000;
     }
     int64_t currentTime = av_gettime() / 1000;
-    if (reset && (currentTime - startTime) > reset_time) {
+    if (reset && (currentTime - startTime) > reset_time && reset_time > 0) {
         av_log(NULL, AV_LOG_VERBOSE, "Reset playback to start after %i ms.\n", reset_time);
         double incr = -10.0;
         double pos = 0;
