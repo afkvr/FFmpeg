@@ -314,7 +314,8 @@ typedef struct VideoState {
 
 /* options specified by the user */
 static AVInputFormat *file_iformat;
-static const char *input_filename;
+static const char *input_filename[128];
+static unsigned int num_filenames = 0;
 static const char *window_title;
 static int default_width  = 640;
 static int default_height = 480;
@@ -1295,7 +1296,7 @@ static int video_open(VideoState *is)
         int flags = 0;
 
         if (!window_title)
-            window_title = input_filename;
+            window_title = input_filename[0];
 
         // Hide or show the window
         if (is_hidden) {
@@ -2900,7 +2901,7 @@ static int read_thread(void *arg)
     is->max_frame_duration = (ic->iformat->flags & AVFMT_TS_DISCONT) ? 10.0 : 3600.0;
 
     if (!window_title && (t = av_dict_get(ic->metadata, "title", NULL, 0)))
-        window_title = av_asprintf("%s - %s", t->value, input_filename);
+        window_title = av_asprintf("%s - %s", t->value, input_filename[0]);
 
     /* if seeking requested, we execute it */
     if (start_time != AV_NOPTS_VALUE) {
@@ -3004,7 +3005,7 @@ static int read_thread(void *arg)
 #if CONFIG_RTSP_DEMUXER || CONFIG_MMSH_PROTOCOL
         if (is->paused &&
                 (!strcmp(ic->iformat->name, "rtsp") ||
-                 (ic->pb && !strncmp(input_filename, "mmsh:", 5)))) {
+                 (ic->pb && !strncmp(input_filename[0], "mmsh:", 5)))) {
             /* wait 10 ms to avoid trying to get another packet */
             /* XXX: horrible */
             SDL_Delay(10);
@@ -3525,7 +3526,10 @@ static void event_loop(VideoState *cur_stream)
             }
             break;
         case SDL_QUIT:
+            av_log(NULL, AV_LOG_VERBOSE, "SDL quit event.\n");
+
         case FF_QUIT_EVENT:
+            av_log(NULL, AV_LOG_VERBOSE, "FF quit event.\n");
             do_exit(cur_stream);
             break;
         default:
@@ -3630,15 +3634,14 @@ static int opt_show_mode(void *optctx, const char *opt, const char *arg)
 
 static void opt_input_file(void *optctx, const char *filename)
 {
-    if (input_filename) {
-        av_log(NULL, AV_LOG_FATAL,
-               "Argument '%s' provided as input filename, but '%s' was already specified.\n",
-                filename, input_filename);
-        exit(1);
-    }
     if (!strcmp(filename, "-"))
         filename = "pipe:";
-    input_filename = filename;
+
+    // Read each input after another
+    input_filename[num_filenames] = filename;
+    num_filenames++;
+
+    av_log(NULL, AV_LOG_INFO, "Input file no. %i: %s\n", num_filenames, input_filename[num_filenames-1]);
 }
 
 static int opt_codec(void *optctx, const char *opt, const char *arg)
@@ -3851,16 +3854,20 @@ int main(int argc, char **argv)
         do_exit(NULL);
     }
 
-    av_init_packet(&flush_pkt);
-    flush_pkt.data = (uint8_t *)&flush_pkt;
+    for (unsigned int i = 0; i < num_filenames; ++i) {
+        av_init_packet(&flush_pkt);
+        flush_pkt.data = (uint8_t *)&flush_pkt;
 
-    is = stream_open(input_filename, file_iformat);
-    if (!is) {
-        av_log(NULL, AV_LOG_FATAL, "Failed to initialize VideoState!\n");
-        do_exit(NULL);
+        is = stream_open(input_filename[i], file_iformat);
+        if (!is) {
+            av_log(NULL, AV_LOG_FATAL, "Failed to initialize VideoState!\n");
+            do_exit(NULL);
+        }
+
+        event_loop(is);
+
+        av_log(NULL, AV_LOG_INFO, "Done playing file %s\n", input_filename[i]);
     }
-
-    event_loop(is);
 
     /* never returns */
 
