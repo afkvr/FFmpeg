@@ -3869,6 +3869,8 @@ int main(int argc, char **argv)
     }
 
     for (unsigned int i = 0; i < num_filenames; ++i) {
+        av_log(NULL, AV_LOG_INFO, "Start playing file %s\n", input_filename[i]);
+
         av_init_packet(&flush_pkt);
         flush_pkt.data = (uint8_t *)&flush_pkt;
 
@@ -3883,7 +3885,8 @@ int main(int argc, char **argv)
         av_log(NULL, AV_LOG_INFO, "Done playing file %s\n", input_filename[i]);
     }
 
-    /* never returns */
+    av_log(NULL, AV_LOG_INFO, "Goodbye!\n");
+    do_exit(NULL);
 
     return 0;
 }
