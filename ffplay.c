@@ -1235,10 +1235,18 @@ static void stream_close(VideoState *is)
     av_free(is);
 }
 
+static void close_stream(VideoState *is)
+{
+    if (is) {
+        stream_close(is);
+    }
+}
+
 static void do_exit(VideoState *is)
 {
     if (is) {
         stream_close(is);
+        is = NULL;
     }
     if (renderer)
         SDL_DestroyRenderer(renderer);
@@ -1382,9 +1390,6 @@ static int video_open(VideoState *is)
         do_exit(is);
     }
 
-    is->width  = w;
-    is->height = h;
-
     // Handle delay time here
     int timemilli = (int)(delay_time * 1000.0f);
     av_log(NULL, AV_LOG_VERBOSE, "Delaying playback by %f seconds (%i milli).\n", delay_time, timemilli);
@@ -1498,6 +1503,12 @@ static void video_display(VideoState *is)
 {
     if (!window)
         video_open(is);
+
+    // Refresh VideoState width & height
+    if (is->width == 0 || is->height == 0) {
+        SDL_GetWindowSize(window, &is->width, &is->height);
+        av_log(NULL, AV_LOG_VERBOSE, "Got size information: %i / %i\n", is->width, is->height);
+    }
 
     // A second after starting to play, reset to the start of the video
     // This prevents an ffplay bug that would otherwise skip the first 1-2 seconds of the video
@@ -3527,11 +3538,14 @@ static void event_loop(VideoState *cur_stream)
             break;
         case SDL_QUIT:
             av_log(NULL, AV_LOG_VERBOSE, "SDL quit event.\n");
+            do_exit(cur_stream);
+            break;
 
         case FF_QUIT_EVENT:
             av_log(NULL, AV_LOG_VERBOSE, "FF quit event.\n");
-            do_exit(cur_stream);
-            break;
+            close_stream(cur_stream);
+            return;
+
         default:
             break;
         }
